@@ -1,7 +1,23 @@
 {
-  "site": "https://habilitatupyme.cl",
+  "site": "https://www.habilitatupyme.cl",
   "appFile": "app.js",
-  "exclude": ["blog"],
+  "exclude": [
+    "blog"
+  ],
   "lastmod": {},
-  "extra": []
+  "extra": [],
+  "redirects": [
+    {
+      "from": "/constitucion-empresa",
+      "to": "/empresa-en-un-dia"
+    },
+    {
+      "from": "/modificacion-estatutos",
+      "to": "/modificacion-de-estatutos"
+    },
+    {
+      "from": "/inicio",
+      "to": "/"
+    }
+  ]
 }

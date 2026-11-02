@@ -1,7 +1,25 @@
 {
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/constitucion-empresa",
+      "destination": "/empresa-en-un-dia",
+      "permanent": true
+    },
+    {
+      "source": "/modificacion-estatutos",
+      "destination": "/modificacion-de-estatutos",
+      "permanent": true
+    },
+    {
+      "source": "/inicio",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/(empresa-en-un-dia|modificacion-de-estatutos|oficina-virtual|patente-municipal|certificado-digital|preguntas-frecuentes|blog|terminos-y-condiciones|informacion-legal)",
       "destination": "/index.html"
     }
   ],

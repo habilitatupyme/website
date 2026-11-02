@@ -1,0 +1,7 @@
+{
+  "site": "https://habilitatupyme.cl",
+  "appFile": "app.js",
+  "exclude": ["blog"],
+  "lastmod": {},
+  "extra": []
+}

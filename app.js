@@ -307,6 +307,10 @@ const FAQ_DATA = [
   }
 ];
 var SITE="https://www.habilitatupyme.cl";
+/* Formulario de la Home: clave PÚBLICA de Web3Forms (https://web3forms.com), creada con contacto@habilitatupyme.cl.
+   Mientras esté vacía, el botón "Enviar por Correo" usa el método antiguo (abre el correo del visitante). */
+var FORM_KEY="c1ff2445-b318-4a0f-a74c-254a8954c90f";
+var FORM_URL="https://api.web3forms.com/submit";
 var PH="56956795885",EM="contacto@habilitatupyme.cl",MAP="https://maps.app.goo.gl/7Sz8qhBkikhFY5Fv8";
 /* En Vercel (dominio propio) usa rutas limpias; en la vista previa de Claude usa #hash. */
 var PATHMODE=location.protocol.indexOf("http")==0&&!/claude|anthropic/i.test(location.hostname);
@@ -358,7 +362,8 @@ if(W.s==1)h+='<h3>1. Tipo de empresa</h3>'+'<div class="og">'+TIPOS.map(function
 if(W.s==2){h+='<h3>2. ¿Qué necesitas resolver?</h3>'+'<div class="og">'+needs().map(function(x,i){return'<button class="opt'+(W.need==x?" s":"")+'" data-a="p2" data-v="'+i+'">'+x+'</button>'}).join("")+'</div>';
 if(hasCo())h+='<label style="font-size:14px">RUT de la Empresa (opcional, para evaluación previa)</label><input id="rut" placeholder="XX.XXX.XXX-X" value="'+W.rut+'" data-i="rut">';
 h+='<p id="wm" style="color:var(--cta);font-size:14px"></p><div class="ar"><button class="btn bk" data-a="back">Volver</button><button class="btn bn" data-a="nx">Continuar</button></div>'}
-if(W.s==3)h+='<h3>3. Datos de contacto</h3><input placeholder="Nombre completo" value="'+W.n+'" data-i="n"><input type="email" placeholder="Correo electrónico" value="'+W.e+'" data-i="e"><input type="tel" placeholder="Teléfono" value="'+W.t+'" data-i="t"><p id="wm" style="color:var(--cta);font-size:14px"></p><div style="display:grid;gap:8px"><button class="btn bn" data-a="mail">Enviar por Correo</button><div class="ar"><button class="btn bk" data-a="back">Volver</button><button class="btn bo" data-a="wa">Hablar de inmediato por WhatsApp con mis datos</button></div></div>';
+if(W.s==3)h+='<h3>3. Datos de contacto</h3><input placeholder="Nombre completo" value="'+W.n+'" data-i="n"><input type="email" placeholder="Correo electrónico" value="'+W.e+'" data-i="e"><input type="tel" placeholder="Teléfono" value="'+W.t+'" data-i="t"><input type="checkbox" id="bc" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none"><p id="wm" role="status" style="color:var(--cta);font-size:14px"></p><div style="display:grid;gap:8px"><button class="btn bn" id="sm" data-a="mail">Enviar por Correo</button><p style="font-size:12px;margin:0">Usaremos tus datos solo para responder tu solicitud.</p><div class="ar"><button class="btn bk" data-a="back">Volver</button><button class="btn bo" data-a="wa">Hablar de inmediato por WhatsApp con mis datos</button></div></div>';
+if(W.s==4)h+='<h3>¡Solicitud enviada!</h3><p>Recibimos tus datos y te contactaremos a la brevedad. Si es urgente, escríbenos ahora por WhatsApp.</p><div class="ar"><button class="btn bk" data-a="again">Enviar otra solicitud</button><a class="btn bo" target="_blank" rel="noopener" href="'+wa(msg())+'">Escribir por WhatsApp</a></div>';
 document.getElementById("wiz").innerHTML='<div class="stp">'+h+'</div>'}
 function back(){if(W.s>1){W.s--;wiz()}}
 function p1(i){if(W.tipo!=TIPOS[i]){W.tipo=TIPOS[i];W.need="";W.rut=""}W.s=2;wiz()}
@@ -366,7 +371,14 @@ function p2(i){W.need=needs()[i];wiz()}
 function nx(){if(!W.need){document.getElementById("wm").textContent="Elige una opción para continuar.";return}W.s=3;wiz()}
 function ok(){if(!W.n||!W.t){document.getElementById("wm").textContent="Completa tu nombre y teléfono.";return false}return true}
 function sendWa(){if(ok())window.open(wa(msg()),"_blank")}
-function sendMail(){if(!ok())return;if(!W.e){document.getElementById("wm").textContent="Agrega tu correo.";return}location.href="mailto:"+EM+"?subject="+encodeURIComponent("Solicitud web - "+W.need)+"&body="+encodeURIComponent(msg()+"\nCorreo: "+W.e)}
+function sendMail(){if(!ok())return;var wm=document.getElementById("wm");
+if(!W.e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(W.e)){wm.textContent="Agrega un correo válido.";return}
+if(!FORM_KEY){location.href="mailto:"+EM+"?subject="+encodeURIComponent("Solicitud web - "+W.need)+"&body="+encodeURIComponent(msg()+"\nCorreo: "+W.e);return}
+var b=document.getElementById("sm");b.disabled=true;b.textContent="Enviando…";wm.textContent="";
+var bc=document.getElementById("bc");
+fetch(FORM_URL,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:FORM_KEY,subject:"Solicitud web - "+W.need,from_name:"Sitio habilitatupyme.cl",name:W.n,email:W.e,phone:W.t,tipo_de_empresa:W.tipo,necesidad:W.need,rut:W.rut||"No indicado",message:msg()+"\nCorreo: "+W.e,botcheck:bc?bc.checked:false})})
+.then(function(r){return r.json().then(function(d){if(!r.ok||!d.success)throw 0;W.s=4;wiz()})})
+.catch(function(){b.disabled=false;b.textContent="Enviar por Correo";wm.textContent="No pudimos enviar tu solicitud. Inténtalo de nuevo o escríbenos por WhatsApp."})}
 /* Páginas */
 function sCard(k,main){var s=S[k];return'<a class="card'+(main?" fa":"")+'" href="'+hr(k)+'" data-r="'+k+'">'+(main?'<span class="tag">'+(k=="constitucion-empresa"?"Creación":"Modificación")+'</span>':ic(s.i))+'<h3'+(main?"":' style="margin-top:8px"')+'>'+s.n+'</h3><p>'+s.d+'</p><div class="pr" style="font-size:22px;margin-top:10px">'+s.price+'</div><span class="more">Ver servicio →</span></a>'}
 function home(){var o=Object.keys(S).filter(function(k){return k!="constitucion-empresa"&&k!="modificacion-estatutos"});
@@ -419,7 +431,7 @@ document.addEventListener("click",function(e){var a=e.target.closest?e.target.cl
 var pc=e.target.closest?e.target.closest("[data-wa]"):null;if(pc&&!e.target.closest("a")){window.open(pc.getAttribute("data-wa"),"_blank","noopener")}
 if(a&&PATHMODE&&e.button===0&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey){e.preventDefault();history.pushState(null,"",a.getAttribute("href"));route()}
 if(!(e.target.closest&&e.target.closest(".dd"))){var d=document.querySelector(".dd");if(d)d.classList.remove("open")}});
-document.addEventListener("click",function(e){var el=e.target.closest?e.target.closest("[data-a]"):null;if(!el)return;var a=el.getAttribute("data-a"),v=el.getAttribute("data-v");var H={dr0:function(){dr(0)},dr1:function(){dr(1)},back:back,nx:nx,mail:sendMail,wa:sendWa,tab:function(){tab(+v)},seg:function(){seg(+v)},p1:function(){p1(+v)},p2:function(){p2(+v)},cat:function(){cat=v;fl()},dd:function(){el.parentNode.classList.toggle("open")},top:function(){window.scrollTo({top:0,behavior:"smooth"})}};if(H[a])H[a]()});
+document.addEventListener("click",function(e){var el=e.target.closest?e.target.closest("[data-a]"):null;if(!el)return;var a=el.getAttribute("data-a"),v=el.getAttribute("data-v");var H={dr0:function(){dr(0)},dr1:function(){dr(1)},back:back,nx:nx,mail:sendMail,wa:sendWa,tab:function(){tab(+v)},seg:function(){seg(+v)},p1:function(){p1(+v)},p2:function(){p2(+v)},cat:function(){cat=v;fl()},dd:function(){el.parentNode.classList.toggle("open")},top:function(){window.scrollTo({top:0,behavior:"smooth"})},again:function(){W={s:1,tipo:"",need:"",rut:"",n:"",e:"",t:""};wiz()}};if(H[a])H[a]()});
 document.addEventListener("input",function(e){var t=e.target,k=t.getAttribute&&t.getAttribute("data-i");if(!k)return;if(k=="rut")t.value=W.rut=fmtRut(t.value);else if(k=="fl")fl();else W[k]=t.value});
 addEventListener("hashchange",route);addEventListener("popstate",route);
 addEventListener("scroll",function(){document.getElementById("top").classList.toggle("show",window.scrollY>300)});

@@ -4,7 +4,17 @@
   "exclude": [
     "blog"
   ],
-  "lastmod": {},
+  "lastmod": {
+    "": "2026-11-02",
+    "empresa-en-un-dia": "2026-11-02",
+    "modificacion-de-estatutos": "2026-11-02",
+    "modificacion-de-estatutos/facultades-de-administracion": "2026-11-02",
+    "modificacion-de-estatutos/cambio-de-giro": "2026-11-02",
+    "modificacion-de-estatutos/cambio-de-representante-legal": "2026-11-02",
+    "modificacion-de-estatutos/cambio-de-accionistas": "2026-11-02",
+    "modificacion-de-estatutos/transformacion-spa-a-eirl-o-srl": "2026-11-02",
+    "modificacion-de-estatutos/modificacion-de-eirl-y-srl": "2026-11-02"
+  },
   "extra": [],
   "redirects": [
     {

@@ -19,7 +19,39 @@
   ],
   "rewrites": [
     {
-      "source": "/(empresa-en-un-dia|modificacion-de-estatutos|oficina-virtual|patente-municipal|certificado-digital|preguntas-frecuentes|blog|terminos-y-condiciones|informacion-legal)",
+      "source": "/empresa-en-un-dia",
+      "destination": "/empresa-en-un-dia.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos",
+      "destination": "/modificacion-de-estatutos.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/facultades-de-administracion",
+      "destination": "/modificacion-de-estatutos--facultades-de-administracion.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/cambio-de-giro",
+      "destination": "/modificacion-de-estatutos--cambio-de-giro.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/cambio-de-representante-legal",
+      "destination": "/modificacion-de-estatutos--cambio-de-representante-legal.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/cambio-de-accionistas",
+      "destination": "/modificacion-de-estatutos--cambio-de-accionistas.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/transformacion-spa-a-eirl-o-srl",
+      "destination": "/modificacion-de-estatutos--transformacion-spa-a-eirl-o-srl.html"
+    },
+    {
+      "source": "/modificacion-de-estatutos/modificacion-de-eirl-y-srl",
+      "destination": "/modificacion-de-estatutos--modificacion-de-eirl-y-srl.html"
+    },
+    {
+      "source": "/(oficina-virtual|patente-municipal|certificado-digital|preguntas-frecuentes|blog|terminos-y-condiciones|informacion-legal)",
       "destination": "/index.html"
     }
   ],

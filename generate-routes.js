@@ -29,7 +29,7 @@ const vp = path.join(root, "vercel.json");
 const v = fs.existsSync(vp) ? JSON.parse(fs.readFileSync(vp, "utf8")) : {};
 v.redirects = (cfg.redirects || []).map(function (r) { return { source: r.from, destination: r.to, permanent: true }; });
 v.rewrites = [{ source: "/(" + slugs.join("|") + ")", destination: "/index.html" }];
-const out = { redirects: v.redirects, rewrites: v.rewrites };
+const out = { trailingSlash: false, redirects: v.redirects, rewrites: v.rewrites };
 Object.keys(v).forEach(function (k) { if (!(k in out)) out[k] = v[k]; });
 fs.writeFileSync(vp, JSON.stringify(out, null, 2) + "\n");
 console.log("404.html y vercel.json generados. Rutas válidas: / " + slugs.map(function (s) { return "/" + s; }).join(" "));

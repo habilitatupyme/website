@@ -53,7 +53,7 @@ fs.writeFileSync(path.join(root, "sitemap.xml"), xml);
 const robotsPath = path.join(root, "robots.txt");
 const line = "Sitemap: " + site + "/sitemap.xml";
 let robots = fs.existsSync(robotsPath) ? fs.readFileSync(robotsPath, "utf8") : "User-agent: *\nAllow: /\n";
-if (robots.indexOf(line) === -1) robots = robots.replace(/\s*$/, "\n\n") + line + "\n";
+robots = robots.replace(/^\s*Sitemap:.*$/gim, "").replace(/\s*$/, "\n\n") + line + "\n";
 fs.writeFileSync(robotsPath, robots);
 
 console.log("sitemap.xml: " + urls.length + " URLs");

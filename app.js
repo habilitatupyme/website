@@ -306,6 +306,7 @@ const FAQ_DATA = [
     serviceUrl: "/certificado-digital"
   }
 ];
+var SITE="https://www.habilitatupyme.cl";
 var PH="56956795885",EM="contacto@habilitatupyme.cl",MAP="https://maps.app.goo.gl/7Sz8qhBkikhFY5Fv8";
 /* En Vercel (dominio propio) usa rutas limpias; en la vista previa de Claude usa #hash. */
 var PATHMODE=location.protocol.indexOf("http")==0&&!/claude|anthropic/i.test(location.hostname);
@@ -411,7 +412,7 @@ function route(){var k=cur(),h,t="Habilita tu PYME | Crea, constituye, formaliza
 if(S[k]){h=svc(k);t=S[k].t+" | Habilita tu PYME";d=S[k].d}else if(k=="preguntas-frecuentes"){h=faq();t="Preguntas frecuentes | Habilita tu PYME"}else if(k=="blog"){h=blog();t="Blog | Habilita tu PYME"}else if(k=="terminos-y-condiciones"){h=terms();t="Términos y condiciones | Habilita tu PYME"}else if(k=="informacion-legal"){h=legal();t="Información legal | Habilita tu PYME"}else if(k=="404"){h=nf();t="Página no encontrada | Habilita tu PYME";d="La página que buscas no existe o fue movida."}else{h=home()}
 document.getElementById("app").innerHTML=h;document.title=t;document.querySelector('meta[name=description]').content=d;
 var rb=document.querySelector('meta[name=robots]');if(k=="404"){if(!rb){rb=document.createElement("meta");rb.name="robots";document.head.appendChild(rb)}rb.content="noindex"}else if(rb)rb.parentNode.removeChild(rb);
-if(PATHMODE){var c=document.querySelector('link[rel=canonical]');if(k=="404"){if(c)c.parentNode.removeChild(c)}else{if(!c){c=document.createElement("link");c.rel="canonical";document.head.appendChild(c)}c.href=location.origin+hr(k)}}
+if(PATHMODE){var c=document.querySelector('link[rel=canonical]');if(k=="404"){if(c)c.parentNode.removeChild(c)}else{if(!c){c=document.createElement("link");c.rel="canonical";document.head.appendChild(c)}c.href=SITE+(k=="inicio"?"/":"/"+PATHS[k])}}
 document.getElementById("wfab").href=wa(msgFor(k));hdr(k);ftr();dr(0);
 if(k=="inicio"){wiz()}if(k=="preguntas-frecuentes")fl();window.scrollTo(0,0)}
 document.addEventListener("click",function(e){var a=e.target.closest?e.target.closest("a[data-r]"):null;

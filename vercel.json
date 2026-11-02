@@ -51,8 +51,32 @@
       "destination": "/modificacion-de-estatutos--modificacion-de-eirl-y-srl.html"
     },
     {
-      "source": "/(oficina-virtual|patente-municipal|certificado-digital|preguntas-frecuentes|blog|terminos-y-condiciones|informacion-legal)",
-      "destination": "/index.html"
+      "source": "/oficina-virtual",
+      "destination": "/oficina-virtual.html"
+    },
+    {
+      "source": "/patente-municipal",
+      "destination": "/patente-municipal.html"
+    },
+    {
+      "source": "/certificado-digital",
+      "destination": "/certificado-digital.html"
+    },
+    {
+      "source": "/preguntas-frecuentes",
+      "destination": "/preguntas-frecuentes.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/blog.html"
+    },
+    {
+      "source": "/terminos-y-condiciones",
+      "destination": "/terminos-y-condiciones.html"
+    },
+    {
+      "source": "/informacion-legal",
+      "destination": "/informacion-legal.html"
     }
   ],
   "headers": [

@@ -1,0 +1,6 @@
+# Archivos que Vercel NO publica. Solo se excluye lo que se agregó para el hosting en cPanel,
+# para que lo que Vercel sirve quede exactamente igual que antes (vercel.json = plan de vuelta atrás).
+.htaccess
+.gitattributes
+.vercelignore
+scripts/verify-urls.sh

@@ -5,9 +5,11 @@
  *   - vercel.json (rewrites SOLO de rutas válidas + redirects 301 de alias; conserva "headers")
  * Las rutas se leen de PATHS en app.js; los alias de "redirects" en sitemap.config.json.
  * Si existe el HTML prerenderizado de una ruta (página para SEO; ver fileOf), esa ruta se reescribe a ese archivo.
+ *   - .htaccess (Apache / LiteSpeed en cPanel): las mismas rutas, alias, barra final, 404 y cabeceras que
+ *     vercel.json, más la redirección a https://www y el bloqueo de archivos internos. Ver buildHtaccess().
  * Uso:  node scripts/generate-routes.js [archivo-html]     (por defecto index.html)
- * Sin dependencias, solo Node.js >= 14. Si cambia de hosting, 404.html sirve igual; solo hay que traducir
- * las reglas de rewrites/redirects a la sintaxis del nuevo servidor (los datos salen del mismo origen).
+ * Sin dependencias, solo Node.js >= 14. vercel.json y .htaccess salen de los mismos datos, así que ambos
+ * hostings se comportan igual (vercel.json queda como plan de vuelta atrás).
  */
 const fs = require("fs"), path = require("path");
 const root = path.resolve(__dirname, "..");
@@ -37,9 +39,128 @@ v.redirects = (cfg.redirects || []).map(function (r) { return { source: r.from, 
 const fileOf = function (s) { return s.replace(/\//g, "--") + ".html"; };
 const pre = slugs.filter(function (s) { return fs.existsSync(path.join(root, fileOf(s))); });
 const spa = slugs.filter(function (s) { return pre.indexOf(s) === -1; });
+const prevOrder = (Array.isArray(v.rewrites) ? v.rewrites : []).map(function (r) { return r.source; });
 v.rewrites = pre.map(function (s) { return { source: "/" + s, destination: "/" + fileOf(s) }; });
 if (spa.length) v.rewrites.push({ source: "/(" + spa.join("|") + ")", destination: "/index.html" });
+/* Conserva el orden que ya tenía vercel.json (las rutas son exactas: el orden no cambia el comportamiento,
+   pero así el archivo no cambia sin motivo). Las rutas nuevas van al final. */
+v.rewrites.sort(function (a, b) {
+  const ia = prevOrder.indexOf(a.source), ib = prevOrder.indexOf(b.source);
+  return (ia === -1 ? 1e9 : ia) - (ib === -1 ? 1e9 : ib);
+});
 const out = { trailingSlash: false, redirects: v.redirects, rewrites: v.rewrites };
 Object.keys(v).forEach(function (k) { if (!(k in out)) out[k] = v[k]; });
 fs.writeFileSync(vp, JSON.stringify(out, null, 2) + "\n");
-console.log("404.html y vercel.json generados. Rutas válidas: / " + slugs.map(function (s) { return "/" + s; }).join(" "));
+
+/* .htaccess */
+/* Bloque que cPanel ya tiene en public_html (MultiPHP INI Editor). Se copia tal cual al inicio del archivo,
+   para que el .htaccess del repositorio coincida con el del servidor. */
+const CPANEL_PHP_BLOCK = [
+  "# BEGIN cPanel-generated php ini directives, do not edit",
+  "# Manual editing of this file may result in unexpected behavior.",
+  "# To make changes to this file, use the cPanel MultiPHP INI Editor (Home >> Software >> MultiPHP INI Editor)",
+  "# For more information, read our documentation (https://go.cpanel.net/EA4ModifyINI)",
+  "<IfModule php8_module>",
+  "   php_value error_log \"/home/habilita/logs/php.error.log\"",
+  "   php_flag log_errors On",
+  "</IfModule>",
+  "<IfModule lsapi_module>",
+  "   php_value error_log \"/home/habilita/logs/php.error.log\"",
+  "   php_flag log_errors On",
+  "</IfModule>",
+  "# END cPanel-generated php ini directives, do not edit"
+].join("\n");
+const hp = path.join(root, ".htaccess");
+fs.writeFileSync(hp, buildHtaccess(out, pre, spa, fs.existsSync(hp) ? fs.readFileSync(hp, "utf8") : ""));
+console.log("404.html, vercel.json y .htaccess generados. Rutas válidas: / " + slugs.map(function (s) { return "/" + s; }).join(" "));
+
+function buildHtaccess(vercel, pre, spa, previous) {
+  /* Dominio canónico, tomado de sitemap.config.json ("site"). El dominio sin www redirige a él. */
+  const site = new URL(cfg.site);
+  const wwwHost = site.hostname, apexHost = wwwHost.replace(/^www\./, "");
+  if (wwwHost === apexHost) throw new Error("sitemap.config.json: se esperaba un dominio con www (" + cfg.site + ")");
+  const reHost = function (h) { return "^" + h.replace(/\./g, "\\.") + "\\.?(:[0-9]+)?$"; };
+  const reRoute = function (p) { return "^" + p.replace(/^\//, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"; };
+  const q = function (s) { return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'; };
+
+  /* Cabeceras: las de vercel.json (solo se admite la regla global "/(.*)") + las que Vercel agrega por su cuenta
+     y que hoy reciben los visitantes (HSTS y Cache-Control; medidas en producción el 04-11-2026). */
+  const headers = [];
+  (vercel.headers || []).forEach(function (h) {
+    if (h.source !== "/(.*)") throw new Error("vercel.json: cabeceras con source " + h.source + " no se traducen solas a .htaccess");
+    h.headers.forEach(function (x) { headers.push([x.key, x.value]); });
+  });
+  const has = function (k) { return headers.some(function (x) { return x[0].toLowerCase() === k.toLowerCase(); }); };
+  if (!has("Strict-Transport-Security")) headers.push(["Strict-Transport-Security", "max-age=63072000"]);
+  if (!has("Cache-Control")) headers.push(["Cache-Control", "public, max-age=0, must-revalidate"]);
+
+  /* Bloques que cPanel agrega por su cuenta: se conservan tal cual, arriba. Si aún no hay .htaccess, se usa el del servidor. */
+  const cpanel = previous.match(/# BEGIN cPanel-generated[\s\S]*?# END cPanel-generated[^\n]*/g) || [CPANEL_PHP_BLOCK];
+
+  const L = [];
+  L.push(cpanel.map(function (b) { return b.replace(/\r/g, ""); }).join("\n\n"), "");
+  L.push(
+    "# BEGIN Habilita tu PYME",
+    "# ---------------------------------------------------------------------------------------------",
+    "# Generado por scripts/generate-routes.js a partir de app.js (PATHS), sitemap.config.json y",
+    "# vercel.json. NO EDITAR A MANO: cambie esos archivos y ejecute  node scripts/generate-routes.js",
+    "#",
+    "# Los bloques \"BEGIN cPanel-generated ... END cPanel-generated\" que cPanel agrega por su cuenta",
+    "# (por ejemplo desde MultiPHP INI Editor) pueden convivir ARRIBA de este bloque: el generador los",
+    "# conserva tal cual. No ponga reglas propias fuera de este bloque.",
+    "# Comprobar el resultado:  bash scripts/verify-urls.sh " + site.origin,
+    "# ---------------------------------------------------------------------------------------------",
+    "",
+    "# Página de inicio, sin listado de carpetas ni negociación de contenido (/index no debe abrir index.html)",
+    "DirectoryIndex index.html",
+    "Options -Indexes -MultiViews",
+    "",
+    "# 404 real (código 404) con la página propia del sitio",
+    "ErrorDocument 404 /404.html",
+    "",
+    "# Codificación UTF-8 en los tipos de texto (igual que Vercel)",
+    "AddDefaultCharset utf-8",
+    "AddCharset utf-8 .js .css .json .xml .svg .txt",
+    "",
+    "RewriteEngine On",
+    "RewriteBase /",
+    "",
+    "# 1. /.well-known/ (validación del certificado AutoSSL): sin redirecciones ni bloqueos",
+    "RewriteRule ^\\.well-known/ - [L]",
+    "",
+    "# 2. Archivos internos y ocultos: acceso prohibido (403)",
+    "RewriteRule (^|/)\\. - [F,L]",
+    "RewriteRule ^scripts(/|$) - [F,L]",
+    "RewriteRule ^(sitemap\\.config\\.json|vercel\\.json|package[^/]*\\.json)$ - [F,L]",
+    "RewriteRule ^README - [NC,F,L]",
+    "",
+    "# 3. Dominio canónico: " + apexHost + " -> " + wwwHost + " y http -> https, en un solo salto,",
+    "#    conservando ruta y parámetros (gclid, utm_*, etc.). HTTPS se detecta también por las cabeceras",
+    "#    de Cloudflare (X-Forwarded-Proto / CF-Visitor) para no crear bucles detrás del proxy.",
+    "RewriteCond %{HTTP_HOST} " + reHost(apexHost) + " [NC]",
+    "RewriteRule ^ https://" + wwwHost + "%{REQUEST_URI} [R=301,L]",
+    "RewriteCond %{HTTP_HOST} " + reHost(wwwHost) + " [NC]",
+    "RewriteCond %{HTTPS} !=on",
+    "RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]",
+    "RewriteCond %{HTTP:CF-Visitor} !https [NC]",
+    "RewriteRule ^ https://" + wwwHost + "%{REQUEST_URI} [R=301,L]",
+    "",
+    "# 4. Barra final: /ruta/ -> /ruta (Vercel: \"trailingSlash\": false). La portada / no se toca.",
+    "RewriteRule ^(.*[^/])/+$ /$1 [R=301,L]",
+    "",
+    "# 5. Alias antiguos (redirects de vercel.json / sitemap.config.json)"
+  );
+  (vercel.redirects || []).forEach(function (r) {
+    L.push("RewriteRule " + reRoute(r.source) + " " + r.destination + " [R=" + (r.permanent === false ? 302 : 301) + ",L]");
+  });
+  L.push("", "# 6. Rutas limpias sin .html (rewrites de vercel.json): la URL no cambia, se sirve el archivo");
+  pre.forEach(function (s) { L.push("RewriteRule " + reRoute("/" + s) + " " + fileOf(s) + " [L]"); });
+  if (spa.length) L.push("RewriteRule ^(" + spa.map(function (s) { return reRoute(s).slice(1, -1); }).join("|") + ")$ index.html [L]");
+  L.push(
+    "",
+    "# 7. Cabeceras de seguridad y caché en todas las respuestas (también 404 y redirecciones)"
+  );
+  headers.forEach(function (x) { L.push("Header always set " + x[0] + " " + q(x[1])); });
+  L.push("", "# END Habilita tu PYME", "");
+  return L.join("\n");
+}

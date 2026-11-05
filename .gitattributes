@@ -1,0 +1,14 @@
+# Saltos de línea LF en todos los archivos de texto (el servidor es Linux; .htaccess y los .sh
+# fallan o se ven mal con CRLF). Git detecta solo qué archivos son texto.
+* text=auto eol=lf
+
+# Binarios: nunca convertir
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.pdf  binary

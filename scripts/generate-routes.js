@@ -132,7 +132,7 @@ function buildHtaccess(vercel, pre, spa, previous) {
     "RewriteRule (^|/)\\. - [F,L]",
     "RewriteRule ^scripts(/|$) - [F,L]",
     "RewriteRule ^(sitemap\\.config\\.json|vercel\\.json|package[^/]*\\.json)$ - [F,L]",
-    "RewriteRule ^README - [NC,F,L]",
+    "RewriteRule ^(README|CLAUDE) - [NC,F,L]",
     "",
     "# 3. Dominio canónico: " + apexHost + " -> " + wwwHost + " y http -> https, en un solo salto,",
     "#    conservando ruta y parámetros (gclid, utm_*, etc.). HTTPS se detecta también por las cabeceras",

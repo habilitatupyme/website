@@ -44,7 +44,7 @@ RewriteRule ^\.well-known/ - [L]
 RewriteRule (^|/)\. - [F,L]
 RewriteRule ^scripts(/|$) - [F,L]
 RewriteRule ^(sitemap\.config\.json|vercel\.json|package[^/]*\.json)$ - [F,L]
-RewriteRule ^README - [NC,F,L]
+RewriteRule ^(README|CLAUDE) - [NC,F,L]
 
 # 3. Dominio canónico: habilitatupyme.cl -> www.habilitatupyme.cl y http -> https, en un solo salto,
 #    conservando ruta y parámetros (gclid, utm_*, etc.). HTTPS se detecta también por las cabeceras
@@ -83,7 +83,7 @@ RewriteRule ^terminos-y-condiciones$ terminos-y-condiciones.html [L]
 RewriteRule ^informacion-legal$ informacion-legal.html [L]
 
 # 7. Cabeceras de seguridad y caché en todas las respuestas (también 404 y redirecciones)
-Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com; font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:; img-src 'self' data: https://images.unsplash.com https://unsplash.com https://*.google.com https://google.com https://*.googleapis.com https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net; connect-src 'self' https://api.web3forms.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net; frame-src 'self' https://*.google.com https://*.doubleclick.net https://doubleclick.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none';"
+Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com; font-src 'self' https://fonts.gstatic.com https://*.gstatic.com data:; img-src 'self' data: https://images.unsplash.com https://unsplash.com https://*.google.com https://google.com https://*.googleapis.com https://*.googleusercontent.com https://*.google-analytics.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net; connect-src 'self' https://api.web3forms.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://googleadservices.com https://*.googleadservices.com https://doubleclick.net https://*.doubleclick.net https://cloudflareinsights.com; frame-src 'self' https://*.google.com https://*.doubleclick.net https://doubleclick.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none';"
 Header always set X-Frame-Options "DENY"
 Header always set X-Content-Type-Options "nosniff"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"

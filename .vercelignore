@@ -4,3 +4,4 @@
 .gitattributes
 .vercelignore
 scripts/verify-urls.sh
+CLAUDE.md

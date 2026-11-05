@@ -145,7 +145,7 @@ if [ -n "${IP_SERVIDOR:-}" ]; then          # por http solo tiene sentido direct
   [ "$CODE" = "404" ] && ok "/.well-known/ por http no se redirige" || fail "http /.well-known/" "código $CODE${LOC:+ -> $LOC}"
 fi
 for r in /vercel.json /sitemap.config.json /scripts/generate-routes.js /scripts/verify-urls.sh /scripts/ \
-         /package.json /package-lock.json /README.md /.htaccess /.git/config /.gitattributes /.vercelignore; do
+         /package.json /package-lock.json /README.md /CLAUDE.md /.htaccess /.git/config /.gitattributes /.vercelignore; do
   fetch "$BASE$r"
   if [ "$CODE" = "403" ] || [ "$CODE" = "404" ]; then ok "$r bloqueado ($CODE)"
   else fail "$r" "código $CODE (esperado 403 o 404)"; fi
@@ -153,16 +153,28 @@ done
 
 # --- 7. Cabeceras -------------------------------------------------------------------------------
 titulo "7. Cabeceras de seguridad y caché"
+# Valores que Vercel envía por su cuenta (no están en vercel.json) y que el .htaccess replica.
+HSTS_ESPERADO="max-age=63072000"
 for r in "/" "$PRUEBA" "/app.js" "/esta-ruta-no-existe-$RANDOM"; do
   fetch "$BASE$r"
   faltan=()
   for i in "${!CAB_NOMBRE[@]}"; do
     [ "$(header "${CAB_NOMBRE[$i]}")" = "${CAB_VALOR[$i]}" ] || faltan+=("${CAB_NOMBRE[$i]}")
   done
-  [ -n "$(header strict-transport-security)" ] || faltan+=("Strict-Transport-Security")
-  [ -n "$(header cache-control)" ] || faltan+=("Cache-Control")
-  if [ ${#faltan[@]} -eq 0 ]; then ok "$r ($CODE): ${#CAB_NOMBRE[@]} cabeceras de vercel.json + HSTS + Cache-Control"
+  if [ ${#faltan[@]} -eq 0 ]; then ok "$r ($CODE): las ${#CAB_NOMBRE[@]} cabeceras de vercel.json (CSP, X-Frame-Options, ...)"
   else fail "$r ($CODE)" "faltan o difieren: ${faltan[*]}"; fi
+
+  hsts="$(header strict-transport-security)"
+  if [ "$hsts" = "$HSTS_ESPERADO" ]; then ok "$r Strict-Transport-Security: $hsts"
+  else fail "$r Strict-Transport-Security" "'${hsts:-ausente}' (esperado $HSTS_ESPERADO)"; fi
+
+  # El servidor envía "public, max-age=0, must-revalidate". Cloudflare puede subir max-age en archivos
+  # estáticos (.js, .png, .txt...) según su "Browser Cache TTL", así que se exige public + must-revalidate,
+  # y max-age=0 en las páginas HTML.
+  cc="$(header cache-control)"
+  if [[ "$cc" == *public* && "$cc" == *must-revalidate* ]] && { [[ "$(header content-type)" != text/html* ]] || [[ "$cc" == *max-age=0* ]]; }; then
+    ok "$r Cache-Control: $cc"
+  else fail "$r Cache-Control" "'${cc:-ausente}' (esperado public, max-age=0, must-revalidate)"; fi
 done
 
 # --- Resumen ------------------------------------------------------------------------------------

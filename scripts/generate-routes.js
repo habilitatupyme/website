@@ -81,6 +81,10 @@ function buildHtaccess(vercel, pre, spa, previous) {
   if (wwwHost === apexHost) throw new Error("sitemap.config.json: se esperaba un dominio con www (" + cfg.site + ")");
   const reHost = function (h) { return "^" + h.replace(/\./g, "\\.") + "\\.?(:[0-9]+)?$"; };
   const reRoute = function (p) { return "^" + p.replace(/^\//, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"; };
+  /* Línea original de la petición que pide /.well-known/ (p. ej. "GET /.well-known/pki-validation/x HTTP/1.1") */
+  const WELL_KNOWN_REQ = "^[A-Z]+\\s/+\\.well-known(/|\\s|\\?)";
+  /* Solo la petición original del visitante (no los saltos internos del servidor) */
+  const ORIGINAL = "RewriteCond %{ENV:REDIRECT_STATUS} ^$";
   const q = function (s) { return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'; };
 
   /* Cabeceras: las de vercel.json (solo se admite la regla global "/(.*)") + las que Vercel agrega por su cuenta
@@ -125,8 +129,13 @@ function buildHtaccess(vercel, pre, spa, previous) {
     "RewriteEngine On",
     "RewriteBase /",
     "",
-    "# 1. /.well-known/ (validación del certificado AutoSSL): sin redirecciones ni bloqueos",
-    "RewriteRule ^\\.well-known/ - [L]",
+    "# 1. /.well-known/ (validación del certificado AutoSSL): sin redirecciones ni bloqueos, nunca.",
+    "#    Se mira la ruta actual y también THE_REQUEST (la línea original \"GET /.well-known/... HTTP/1.1\"),",
+    "#    que no cambia cuando el servidor salta por dentro a /404.html (ErrorDocument): así un archivo",
+    "#    inexistente en /.well-known/ responde 404 directo, sin redirigir a https ni a /404.html.",
+    "RewriteRule ^\\.well-known(/|$) - [L]",
+    "RewriteCond %{THE_REQUEST} " + WELL_KNOWN_REQ + " [NC]",
+    "RewriteRule ^ - [L]",
     "",
     "# 2. Archivos internos y ocultos: acceso prohibido (403)",
     "RewriteRule (^|/)\\. - [F,L]",
@@ -137,8 +146,14 @@ function buildHtaccess(vercel, pre, spa, previous) {
     "# 3. Dominio canónico: " + apexHost + " -> " + wwwHost + " y http -> https, en un solo salto,",
     "#    conservando ruta y parámetros (gclid, utm_*, etc.). HTTPS se detecta también por las cabeceras",
     "#    de Cloudflare (X-Forwarded-Proto / CF-Visitor) para no crear bucles detrás del proxy.",
+    "#    Todas las redirecciones (3, 4 y 5) llevan  RewriteCond %{ENV:REDIRECT_STATUS} ^$ : solo se aplican a",
+    "#    la petición original del visitante, nunca a los saltos internos (404.html, archivos .html).",
+    ORIGINAL,
+    "RewriteCond %{THE_REQUEST} !" + WELL_KNOWN_REQ + " [NC]",
     "RewriteCond %{HTTP_HOST} " + reHost(apexHost) + " [NC]",
     "RewriteRule ^ https://" + wwwHost + "%{REQUEST_URI} [R=301,L]",
+    ORIGINAL,
+    "RewriteCond %{THE_REQUEST} !" + WELL_KNOWN_REQ + " [NC]",
     "RewriteCond %{HTTP_HOST} " + reHost(wwwHost) + " [NC]",
     "RewriteCond %{HTTPS} !=on",
     "RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]",
@@ -146,12 +161,13 @@ function buildHtaccess(vercel, pre, spa, previous) {
     "RewriteRule ^ https://" + wwwHost + "%{REQUEST_URI} [R=301,L]",
     "",
     "# 4. Barra final: /ruta/ -> /ruta (Vercel: \"trailingSlash\": false). La portada / no se toca.",
+    ORIGINAL,
     "RewriteRule ^(.*[^/])/+$ /$1 [R=301,L]",
     "",
     "# 5. Alias antiguos (redirects de vercel.json / sitemap.config.json)"
   );
   (vercel.redirects || []).forEach(function (r) {
-    L.push("RewriteRule " + reRoute(r.source) + " " + r.destination + " [R=" + (r.permanent === false ? 302 : 301) + ",L]");
+    L.push(ORIGINAL, "RewriteRule " + reRoute(r.source) + " " + r.destination + " [R=" + (r.permanent === false ? 302 : 301) + ",L]");
   });
   L.push("", "# 6. Rutas limpias sin .html (rewrites de vercel.json): la URL no cambia, se sirve el archivo");
   pre.forEach(function (s) { L.push("RewriteRule " + reRoute("/" + s) + " " + fileOf(s) + " [L]"); });

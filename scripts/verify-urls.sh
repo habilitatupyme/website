@@ -54,25 +54,35 @@ rel() { local l="$1"; l="${l#"$BASE"}"; printf '%s' "$l"; }
 es_permanente() { [ "$1" = "301" ] || [ "$1" = "308" ]; }
 
 # --- Datos de vercel.json -----------------------------------------------------------------------
+# Sin <(...), <<<, mapfile ni archivos temporales: el servidor (CloudLinux con CageFS) no tiene /dev/fd
+# y su bash puede ser 4.2. Los arreglos vacíos nunca se recorren con "${a[@]}" (falla con set -u en 4.2).
 seccion_de() { awk -v s="\"$1\":" '$1==s{on=1;next} /^  "[a-zA-Z]+":/{on=0} on' "$VJ"; }
 valor() { sed -nE "s/^[[:space:]]*\"$1\": \"(.*)\",?$/\1/p"; }
+# a_arreglo NOMBRE "texto": una línea por elemento (sin expandir comodines como "/(.*)")
+a_arreglo() { local IFS=$'\n'; set -f; eval "$1=(\$2)"; set +f; }
+
+a_arreglo FUENTES    "$(seccion_de rewrites  | valor source)"
+a_arreglo ALIAS_DE   "$(seccion_de redirects | valor source)"
+a_arreglo ALIAS_A    "$(seccion_de redirects | valor destination)"
+a_arreglo CAB_NOMBRE "$(seccion_de headers   | valor key)"
+a_arreglo CAB_VALOR  "$(seccion_de headers   | valor value)"
+if [ ${#FUENTES[@]} -eq 0 ] || [ ${#ALIAS_DE[@]} -ne ${#ALIAS_A[@]} ] || [ ${#CAB_NOMBRE[@]} -eq 0 ] \
+   || [ ${#CAB_NOMBRE[@]} -ne ${#CAB_VALOR[@]} ]; then
+  echo "No se pudieron leer las rutas, alias o cabeceras de $VJ"; exit 2
+fi
 
 RUTAS=("/")
-while IFS= read -r src; do
+for ((i = 0; i < ${#FUENTES[@]}; i++)); do
+  src="${FUENTES[$i]}"
   if [[ "$src" == "/("*")" ]]; then           # grupo "/(a|b)" que va a index.html
-    IFS='|' read -r -a grupo <<< "${src:2:${#src}-3}"
-    for g in "${grupo[@]}"; do RUTAS+=("/$g"); done
+    a_arreglo grupo "$(printf '%s' "${src:2:${#src}-3}" | tr '|' '\n')"
+    for ((j = 0; j < ${#grupo[@]}; j++)); do RUTAS+=("/${grupo[$j]}"); done
   else
     RUTAS+=("$src")
   fi
-done < <(seccion_de rewrites | valor source)
+done
 
-mapfile -t ALIAS_DE   < <(seccion_de redirects | valor source)
-mapfile -t ALIAS_A    < <(seccion_de redirects | valor destination)
-mapfile -t CAB_NOMBRE < <(seccion_de headers | valor key)
-mapfile -t CAB_VALOR  < <(seccion_de headers | valor value)
-
-PRUEBA="${RUTAS[1]:-/}"                       # una ruta interior para las pruebas de barra y dominio
+PRUEBA="${RUTAS[1]}"                          # una ruta interior para las pruebas de barra y dominio
 QS="gclid=prueba-123&utm_source=verify"
 
 echo "Verificando $BASE"
@@ -87,7 +97,7 @@ done
 
 # --- 2. Alias -----------------------------------------------------------------------------------
 titulo "2. Alias antiguos (redirección permanente 301/308 al destino, conservando parámetros)"
-for i in "${!ALIAS_DE[@]}"; do
+for ((i = 0; i < ${#ALIAS_DE[@]}; i++)); do
   de="${ALIAS_DE[$i]}"; a="${ALIAS_A[$i]}"
   fetch "$BASE$de?$QS"
   destino="$(rel "$LOC")"
@@ -128,7 +138,7 @@ else
   done
   url="http://$APEX_HOST$PRUEBA?$QS"
   res="$(curl "${CURL_OPTS[@]}" -L --max-redirs 5 -o /dev/null -w '%{http_code} %{num_redirects} %{url_effective}' "$url")"
-  read -r c n final <<< "$res"
+  c="${res%% *}"; res="${res#* }"; n="${res%% *}"; final="${res#* }"
   if [ "$c" = "200" ] && [ "$final" = "$ESPERADO" ]; then ok "$url -> $final ($n salto(s))"
   else fail "$url" "terminó en '$final' con código $c tras $n salto(s)"; fi
   fetch "https://$WWW_HOST/"
@@ -141,8 +151,14 @@ fetch "$BASE/.well-known/verify-urls-$RANDOM.txt"
 if [ "$CODE" = "404" ]; then ok "/.well-known/ no se bloquea ni redirige (404 normal)"
 else fail "/.well-known/" "código $CODE${LOC:+ -> $LOC} (esperado 404)"; fi
 if [ -n "${IP_SERVIDOR:-}" ]; then          # por http solo tiene sentido directo al servidor (Cloudflare fuerza https)
-  fetch "http://$WWW_HOST/.well-known/verify-urls-$RANDOM.txt"
-  [ "$CODE" = "404" ] && ok "/.well-known/ por http no se redirige" || fail "http /.well-known/" "código $CODE${LOC:+ -> $LOC}"
+  # AutoSSL valida por http ambos dominios: no debe recibir ninguna redirección (ni a https ni a /404.html)
+  for url in "http://$WWW_HOST/.well-known/pki-validation/verify-$RANDOM.txt" \
+             "http://$APEX_HOST/.well-known/pki-validation/verify-$RANDOM.txt" \
+             "https://$APEX_HOST/.well-known/acme-challenge/verify-$RANDOM"; do
+    fetch "$url"
+    if [ "$CODE" = "404" ]; then ok "$url -> 404 sin redirección"
+    else fail "$url" "código $CODE${LOC:+ -> $LOC} (esperado 404 sin redirección)"; fi
+  done
 fi
 for r in /vercel.json /sitemap.config.json /scripts/generate-routes.js /scripts/verify-urls.sh /scripts/ \
          /package.json /package-lock.json /README.md /CLAUDE.md /.htaccess /.git/config /.gitattributes /.vercelignore; do
@@ -158,7 +174,7 @@ HSTS_ESPERADO="max-age=63072000"
 for r in "/" "$PRUEBA" "/app.js" "/esta-ruta-no-existe-$RANDOM"; do
   fetch "$BASE$r"
   faltan=()
-  for i in "${!CAB_NOMBRE[@]}"; do
+  for ((i = 0; i < ${#CAB_NOMBRE[@]}; i++)); do
     [ "$(header "${CAB_NOMBRE[$i]}")" = "${CAB_VALOR[$i]}" ] || faltan+=("${CAB_NOMBRE[$i]}")
   done
   if [ ${#faltan[@]} -eq 0 ]; then ok "$r ($CODE): las ${#CAB_NOMBRE[@]} cabeceras de vercel.json (CSP, X-Frame-Options, ...)"
@@ -183,7 +199,7 @@ printf '  Comprobaciones correctas: %d\n' "$OK"
 printf '  Con error:                %d\n' "$ERR"
 if [ "$ERR" -gt 0 ]; then
   printf '\n  Revisar:\n'
-  for e in "${ERRORES[@]}"; do printf '   - %s\n' "$e"; done
+  for ((i = 0; i < ${#ERRORES[@]}; i++)); do e="${ERRORES[$i]}"; printf '   - %s\n' "$e"; done
   exit 1
 fi
 printf '\n  Todo en orden.\n'
